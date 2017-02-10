@@ -20,11 +20,12 @@ import Swiper from 'react-native-swiper';
 const URL = 'https://unsplash.it/list'
 const NUM_WALLPAPERS = 5;
 
+// === DEFINE FLOW TYPES ====
 type JSON = | string | number | boolean | null | JSONObject | JSONArray;
 type JSONObject = { [key:string]: JSON };
 type JSONArray = Array<JSONObject>;
 type State = {
-  ds: (JSONArray) => JSONArray,
+  // ds: (JSONArray) => JSONArray,
   isLoading: boolean,
   wallsJSON: JSONArray
 };
@@ -35,13 +36,15 @@ export default class RootContainer extends Component {
 
   state: State;
 
-  static defaultProps: { visited: boolean };
+  static defaultProps: {
+    visited: boolean
+  };
 
   constructor(props: Props) {
     super(props);
-    const ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2})
+    // const ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2})
     this.state = { // use this.setState everywhere else
-      ds: ds,
+      // ds: ds,
       wallsJSON: [],
       isLoading: true
     }
@@ -62,16 +65,23 @@ export default class RootContainer extends Component {
     })
     .catch(err => console.log('fetch error', err))
   }
-  _renderRow(rowData) {
-    console.log(rowData.post_url)
-    let pic = {
-      uri: rowData.post_url
-    };
-    return (
-      <View>
-        <Text style={styles.text}> {rowData.author} </Text>
-      </View>
-    )
+  // _renderRow(rowData) {
+  //   console.log(rowData.post_url)
+  //   let pic = {
+  //     uri: rowData.post_url
+  //   };
+  //   return (
+  //     <View>
+  //       <Text style={styles.text}> {rowData.author} </Text>
+  //     </View>
+  //   )
+  // }
+  _renderRow(wallpaper: JSONObject, index: number) {
+    return(
+      <Text key={index}>
+        {wallpaper.author}
+      </Text>
+    );
   }
   _onMomentumScrollEnd(e, state, context) {
     console.log(state, context.state)
@@ -81,23 +91,12 @@ export default class RootContainer extends Component {
       if (!isLoading) {
         return (
           <Swiper
-            dot={<View style={
-              { backgroundColor:'rgba(255,255,255,.4)', width: 8, height: 8, borderRadius: 10, marginLeft: 3, marginRight: 3, marginTop: 3, marginBottom: 3 }} />}
-
-            activeDot={<View style={
-              { backgroundColor: '#fff', width: 13, height: 13, borderRadius: 7, marginLeft: 7, marginRight: 7 } } />}
-
+            dot={<View style={styles.dot} />}
+            activeDot={<View style={styles.activeDot} />}
             loop={false}
-
             onMomentumScrollEnd={this._onMomentumScrollEnd}
             >
-            {wallsJSON.map((wallpaper, index) => {
-              return(
-                <Text key={index}>
-                  {wallpaper.author}
-                </Text>
-              );
-            })}
+            { wallsJSON.map((wallpaper, index) => this._renderRow(wallpaper, index)) }
           </Swiper>
         );
       {/**
@@ -139,10 +138,28 @@ const styles = StyleSheet.create({
   loadingContainer: {
   	flex: 1,
     flexDirection: 'column',
-    backgroundColor: '#dbd8d8',
+    backgroundColor: 'blue',
     justifyContent: 'center'
   },
   text: {
     color: '#c93f3f'
+  },
+  dot: {
+    backgroundColor:'rgba(255,255,255,.4)',
+    width: 8,
+    height: 8,
+    borderRadius: 10,
+    marginLeft: 3,
+    marginRight: 3,
+    marginTop: 3,
+    marginBottom: 3
+  },
+  activeDot: {
+    backgroundColor: '#fff',
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    marginLeft: 7,
+    marginRight: 7
   }
 });
