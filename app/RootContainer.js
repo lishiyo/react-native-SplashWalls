@@ -12,9 +12,12 @@ import {
   ListView,
   ScrollView,
   Image,
-  Dimensions
+  Dimensions,
+  PanResponder,
+  CameraRoll,
+  AlertIOS
 } from 'react-native';
-import { uniqueRandomNumbers } from './utils'
+import { uniqueRandomNumbers, distance } from './utils'
 import Swiper from 'react-native-swiper';
 import NetworkImage from 'react-native-image-progress'
 import * as Progress from 'react-native-progress'
@@ -23,21 +26,29 @@ import EStyleSheet from 'react-native-extended-stylesheet';
 const { width, height } = Dimensions.get('window')
 const URL = 'https://unsplash.it/list'
 const NUM_WALLPAPERS = 5;
+const DOUBLE_TAP_DELAY = 300; // milliseconds
+const DOUBLE_TAP_RADIUS = 20;
 
 // === DEFINE FLOW TYPES ====
 type JSON = | string | number | boolean | null | JSONObject | JSONArray;
 type JSONObject = { [key:string]: JSON };
 type JSONArray = Array<JSONObject>;
+type Props = mixed;
 type State = {
   // ds: (JSONArray) => JSONArray,
   isLoading: boolean,
   wallsJSON: JSONArray
 };
-type Props = mixed;
 
 export default class RootContainer extends Component {
+  // define fields' flow types
   props: Props;
   state: State;
+  imagePanResponder: Object = {};
+  prevTouchInfo: Object = {};
+  //  index of the wallpaper that is currently visible on the screen
+  currentWallIndex: number;
+
   static defaultProps: {
     visited: boolean
   };
@@ -50,11 +61,30 @@ export default class RootContainer extends Component {
       wallsJSON: [],
       isLoading: true
     }
+
+    // init pan responder
+    this.imagePanResponder = {};
+    this.prevTouchInfo = {
+      prevTouchX: 0,
+      prevTouchY: 0,
+      prevTouchTimeStamp: 0
+    };
+    this.currentWallIndex = 0;
+  }
+  componentWillMount() {
+    this.imagePanResponder = PanResponder.create({
+      onStartShouldSetPanResponder: this.handleStartShouldSetPanResponder,
+      onPanResponderGrant: this.handlePanResponderGrant.bind(this),
+      onPanResponderRelease: this.handlePanResponderEnd,
+      onPanResponderTerminate: this.handlePanResponderEnd
+    });
+    this._onMomentumScrollEnd = this._onMomentumScrollEnd.bind(this);
   }
   componentDidMount() {
-  	this._fetchWallsJson();
+  	this.fetchWallsJson();
   }
-  _fetchWallsJson( ){
+
+  fetchWallsJson(){
     fetch(URL)
     .then(resp => resp.json())
     .then(jsonData => {
@@ -67,44 +97,62 @@ export default class RootContainer extends Component {
     })
     .catch(err => console.log('fetch error', err))
   }
-  // _renderRow(rowData) {
-  //   console.log(rowData.post_url)
-  //   let pic = {
-  //     uri: rowData.post_url
-  //   };
-  //   return (
-  //     <View>
-  //       <Text style={styles.text}> {rowData.author} </Text>
-  //     </View>
-  //   )
-  // }
-  _renderRow(wallpaper: JSONObject, index: number) {
-    console.log("renderRow wallpaper", wallpaper)
-    let imageUri = this._generateImageUri(wallpaper)
-    return(
-      <View key={index}>
-        <NetworkImage
-          source={{uri: imageUri }}
-          indicator={Progress.Circle}
-          style={styles.wallpaperImage}
-          indicatorProps={{
-            color: 'rgba(255, 255, 255)',
-            size: 60,
-            thickness: 7
-          }}
-        >
-          <Text style={styles.label}>Photo by</Text>
-          <Text style={styles.label_authorName}>{wallpaper.author}</Text>
-        </NetworkImage>
-      </View>
-    );
-  }
   _generateImageUri(wallpaper: JSONObject) {
     return `https://unsplash.it/${wallpaper.width}/${wallpaper.height}?image=${wallpaper.id}`;
   }
   _onMomentumScrollEnd(e, state, context) {
-    console.log(state, context.state)
+    console.log("onMomentumScrollEnd! state, context.state", state, context.state)
+    this.currentWallIndex = state.index;
   }
+  saveCurrentWallpaperToCameraRoll() {
+    const { wallsJSON } = this.state;
+    const currentWall = wallsJSON[this.currentWallIndex];
+    const currentWallUrl = this._generateImageUri(currentWall);
+
+    CameraRoll.saveToCameraRoll(currentWallUrl)
+      .then(resp => {
+        console.log("successfully saved! resp? ", resp)
+        AlertIOS.alert(
+          'Saved',
+          'Wallpaper successfully saved to Camera Roll',
+          [
+            {text: 'High 5!', onPress: () => console.log('OK Pressed!')}
+          ]
+        );
+      })
+      .catch(err => {
+        console.log('Error saving to camera roll', err);
+      })
+  }
+
+  // PANRESPONDER
+  handleStartShouldSetPanResponder(e: Object, gestureState: Object) {
+      return true;
+  }
+  handlePanResponderGrant(e: Object, gestureState: Object) {
+    console.log('ResponderGrant: Finger touched the view');
+    let currentTouchTimeStamp = Date.now();
+    if (this._isDoubleTap(currentTouchTimeStamp, gestureState)) {
+      console.log("DOUBLE TAP detected");
+      this.saveCurrentWallpaperToCameraRoll();
+    }
+    // update touch info
+    this.prevTouchInfo = {
+      prevTouchX: gestureState.x0,
+      prevTouchY: gestureState.y0,
+      prevTouchTimeStamp: currentTouchTimeStamp
+    }
+  }
+  handlePanResponderEnd(e: Object, gestureState: Object) {
+    console.log('ResponderEnd: Finger pulled up from the view');
+  }
+  _isDoubleTap(currentTouchTimeStamp, { x0, y0 }) {
+    const {prevTouchX, prevTouchY, prevTouchTimeStamp} = this.prevTouchInfo;
+    const dt = currentTouchTimeStamp - prevTouchTimeStamp;
+    return (dt < DOUBLE_TAP_DELAY && distance(prevTouchX, prevTouchY, x0, y0) < DOUBLE_TAP_RADIUS);
+  }
+
+  // ==== RENDER ===
   _renderResults() {
       const { wallsJSON, isLoading} = this.state;
       if (!isLoading) {
@@ -118,14 +166,6 @@ export default class RootContainer extends Component {
             { wallsJSON.map((wallpaper, index) => this._renderRow(wallpaper, index)) }
           </Swiper>
         );
-      {/**
-        <ScrollView contentContainerStyle={styles.loadingContainer}>
-          <ListView
-            dataSource={this.state.wallsJSON}
-            renderRow={(rowData) => this._renderRow.call(this, rowData)}
-          />
-        </ScrollView>
-        **/}
       }
   }
   _renderLoadingMessage() {
@@ -142,6 +182,27 @@ export default class RootContainer extends Component {
         </Text>
       </View>
     )
+  }
+  _renderRow(wallpaper: JSONObject, index: number) {
+    let imageUri = this._generateImageUri(wallpaper)
+    return(
+      <View key={index}>
+        <NetworkImage
+          source={{uri: imageUri }}
+          {...this.imagePanResponder.panHandlers}
+          indicator={Progress.Circle}
+          style={styles.wallpaperImage}
+          indicatorProps={{
+            color: 'rgba(255, 255, 255)',
+            size: 60,
+            thickness: 7
+          }}
+        >
+          <Text style={styles.label}>Photo by</Text>
+          <Text style={styles.label_authorName}>{wallpaper.author}</Text>
+        </NetworkImage>
+      </View>
+    );
   }
   render() {
     const { isLoading } = this.state

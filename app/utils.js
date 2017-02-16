@@ -14,3 +14,7 @@ export function uniqueRandomNumbers(numRandomNumbers: number, lowerLimit: number
 export function randomNumberInRange(lowerLimit: number, upperLimit: number) {
 	return Math.floor( Math.random() * (1 + upperLimit - lowerLimit) ) + lowerLimit;
 }
+
+export function distance(x0: number, y0: number, x1: number, y1: number) {
+  return Math.sqrt( Math.pow(( x1 - x0 ), 2) + Math.pow(( y1 - y0 ), 2) );
+}
