@@ -6,17 +6,21 @@
 import React, { Component } from 'react';
 import {
   AppRegistry,
-  StyleSheet,
   Text,
   View,
   ActivityIndicator,
   ListView,
   ScrollView,
-  Image
+  Image,
+  Dimensions
 } from 'react-native';
 import { uniqueRandomNumbers } from './utils'
 import Swiper from 'react-native-swiper';
+import NetworkImage from 'react-native-image-progress'
+import * as Progress from 'react-native-progress'
+import EStyleSheet from 'react-native-extended-stylesheet';
 
+const { width, height } = Dimensions.get('window')
 const URL = 'https://unsplash.it/list'
 const NUM_WALLPAPERS = 5;
 
@@ -33,9 +37,7 @@ type Props = mixed;
 
 export default class RootContainer extends Component {
   props: Props;
-
   state: State;
-
   static defaultProps: {
     visited: boolean
   };
@@ -77,11 +79,28 @@ export default class RootContainer extends Component {
   //   )
   // }
   _renderRow(wallpaper: JSONObject, index: number) {
+    console.log("renderRow wallpaper", wallpaper)
+    let imageUri = this._generateImageUri(wallpaper)
     return(
-      <Text key={index}>
-        {wallpaper.author}
-      </Text>
+      <View key={index}>
+        <NetworkImage
+          source={{uri: imageUri }}
+          indicator={Progress.Circle}
+          style={styles.wallpaperImage}
+          indicatorProps={{
+            color: 'rgba(255, 255, 255)',
+            size: 60,
+            thickness: 7
+          }}
+        >
+          <Text style={styles.label}>Photo by</Text>
+          <Text style={styles.label_authorName}>{wallpaper.author}</Text>
+        </NetworkImage>
+      </View>
     );
+  }
+  _generateImageUri(wallpaper: JSONObject) {
+    return `https://unsplash.it/${wallpaper.width}/${wallpaper.height}?image=${wallpaper.id}`;
   }
   _onMomentumScrollEnd(e, state, context) {
     console.log(state, context.state)
@@ -134,7 +153,7 @@ export default class RootContainer extends Component {
   }
 }
 
-const styles = StyleSheet.create({
+const styles = EStyleSheet.create({
   loadingContainer: {
   	flex: 1,
     flexDirection: 'column',
@@ -152,7 +171,7 @@ const styles = StyleSheet.create({
     marginLeft: 3,
     marginRight: 3,
     marginTop: 3,
-    marginBottom: 3
+    marginBottom: 25
   },
   activeDot: {
     backgroundColor: '#fff',
@@ -160,6 +179,36 @@ const styles = StyleSheet.create({
     height: 13,
     borderRadius: 7,
     marginLeft: 7,
-    marginRight: 7
+    marginRight: 7,
+    marginBottom: 22
+  },
+  wallpaperImage: {
+    // flexGrow: 1,
+    width: width,
+    height: height,
+    backgroundColor: '#000',
+  },
+  label: {
+    position: 'absolute',
+    color: '#fff',
+    fontSize: 13,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    padding: 2,
+    paddingLeft: 5,
+    top: 20,
+    left: 20,
+    width: width/2
+  },
+  label_authorName: {
+    position: 'absolute',
+    color: '#fff',
+    fontSize: 15,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    padding: 2,
+    paddingLeft: 5,
+    top: 41,
+    left: 20,
+    fontWeight: 'bold',
+    width: width/2
   }
 });

@@ -12,6 +12,9 @@ import {
   View
 } from 'react-native';
 import RootContainer from './app/RootContainer'
+import EStyleSheet from 'react-native-extended-stylesheet';
+
+EStyleSheet.build();
 
 export default class SplashWalls extends Component {
   render() {
